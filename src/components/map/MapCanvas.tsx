@@ -1,0 +1,349 @@
+import React, { useEffect, useRef } from 'react';
+import L from 'leaflet';
+import { GraphData, GraphNode, GraphEdge, HazardZone, RouteResult, AlgorithmStep } from '../../types/graph';
+import { DistressCall, RescueTeam } from '../../types/simulation';
+
+interface MapCanvasProps {
+  graph: GraphData;
+  hazards: HazardZone[];
+  activeRoute: RouteResult | null;
+  activeRouteIsAiSafe: boolean;
+  selectedStep: AlgorithmStep | null;
+  selectedNodeId: string | null;
+  selectedEdgeId: string | null;
+  distressCalls: DistressCall[];
+  rescueTeams: RescueTeam[];
+  onSelectNode: (nodeId: string) => void;
+  onSelectEdge: (edgeId: string) => void;
+  centerLat: number;
+  centerLng: number;
+  zoom: number;
+}
+
+export const MapCanvas: React.FC<MapCanvasProps> = ({
+  graph,
+  hazards,
+  activeRoute,
+  activeRouteIsAiSafe,
+  selectedStep,
+  selectedNodeId,
+  selectedEdgeId,
+  distressCalls,
+  rescueTeams,
+  onSelectNode,
+  onSelectEdge,
+  centerLat,
+  centerLng,
+  zoom
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const layersRef = useRef<{
+    hazardsLayer: L.LayerGroup;
+    edgesLayer: L.LayerGroup;
+    nodesLayer: L.LayerGroup;
+    routeLayer: L.LayerGroup;
+    stepHighlightLayer: L.LayerGroup;
+  } | null>(null);
+
+  // Initialize Map
+  useEffect(() => {
+    if (!mapContainerRef.current || mapInstanceRef.current) return;
+
+    const map = L.map(mapContainerRef.current, {
+      center: [centerLat, centerLng],
+      zoom: zoom,
+      zoomControl: true,
+      attributionControl: false
+    });
+
+    // Dark Tile Layer (CartoDB Dark Matter)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      subdomains: 'abcd'
+    }).addTo(map);
+
+    const hazardsLayer = L.layerGroup().addTo(map);
+    const edgesLayer = L.layerGroup().addTo(map);
+    const stepHighlightLayer = L.layerGroup().addTo(map);
+    const routeLayer = L.layerGroup().addTo(map);
+    const nodesLayer = L.layerGroup().addTo(map);
+
+    layersRef.current = {
+      hazardsLayer,
+      edgesLayer,
+      nodesLayer,
+      routeLayer,
+      stepHighlightLayer
+    };
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+    };
+  }, []);
+
+  // Update map view when scenario center changes
+  useEffect(() => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setView([centerLat, centerLng], zoom, { animate: true });
+    }
+  }, [centerLat, centerLng, zoom]);
+
+  // Render Map Elements
+  useEffect(() => {
+    if (!layersRef.current || !mapInstanceRef.current) return;
+    const { hazardsLayer, edgesLayer, nodesLayer, routeLayer, stepHighlightLayer } = layersRef.current;
+
+    hazardsLayer.clearLayers();
+    edgesLayer.clearLayers();
+    nodesLayer.clearLayers();
+    routeLayer.clearLayers();
+    stepHighlightLayer.clearLayers();
+
+    // 1. Render Hazard Zones
+    for (const hazard of hazards) {
+      let fillColor = '#06b6d4'; // flood cyan
+      let strokeColor = '#22d3ee';
+      if (hazard.type === 'wildfire') {
+        fillColor = '#f97316';
+        strokeColor = '#ea580c';
+      } else if (hazard.type === 'earthquake') {
+        fillColor = '#f43f5e';
+        strokeColor = '#e11d48';
+      } else if (hazard.type === 'landslide') {
+        fillColor = '#eab308';
+        strokeColor = '#ca8a04';
+      }
+
+      const circle = L.circle([hazard.centerLat, hazard.centerLng], {
+        radius: hazard.radiusKm * 1000,
+        color: strokeColor,
+        weight: 2,
+        opacity: 0.8,
+        fillColor: fillColor,
+        fillOpacity: Math.min(0.45, hazard.intensity * 0.45)
+      });
+
+      circle.bindTooltip(`
+        <div style="font-family: Inter, sans-serif; padding: 4px;">
+          <div style="font-weight: 800; color: ${strokeColor}; text-transform: uppercase;">${hazard.type} Zone</div>
+          <div style="font-size: 11px; color: #cbd5e1;">Radius: ${hazard.radiusKm.toFixed(1)} km | Intensity: ${(hazard.intensity * 100).toFixed(0)}%</div>
+          <div style="font-size: 10px; color: #94a3b8;">Expansion: +${hazard.expansionRateKmH} km/h</div>
+        </div>
+      `, { sticky: true, className: 'leaflet-custom-tooltip' });
+
+      circle.addTo(hazardsLayer);
+    }
+
+    // 2. Render Road Edges
+    const activeRouteEdgeSet = new Set(activeRoute?.pathEdgeIds || []);
+    const stepEdgeSet = new Set(selectedStep?.highlightedEdgeIds || []);
+
+    for (const edge of Object.values(graph.edges)) {
+      const src = graph.nodes[edge.source];
+      const tgt = graph.nodes[edge.target];
+      if (!src || !tgt) continue;
+
+      const isSelected = selectedEdgeId === edge.id;
+      const inActiveRoute = activeRouteEdgeSet.has(edge.id);
+      const inStepHighlight = stepEdgeSet.has(edge.id);
+
+      // Determine road line color
+      let color = '#38bdf8'; // safe sky blue
+      let dashArray: string | undefined = undefined;
+      let weight = isSelected ? 6 : inActiveRoute ? 6 : 3.5;
+      let opacity = 0.85;
+
+      if (edge.isBlocked) {
+        color = '#ef4444';
+        dashArray = '6, 6';
+        opacity = 0.9;
+      } else if (edge.isMstEdge) {
+        color = '#c084fc'; // purple for MST
+        weight = 4.5;
+      } else if (edge.isMinCut) {
+        color = '#f59e0b'; // amber min-cut
+        dashArray = '4, 4';
+        weight = 5;
+      } else if (edge.isBridge) {
+        color = '#fb7185'; // rose bridge
+        weight = 4.5;
+      } else if (edge.hazardRisk > 0.7) {
+        color = '#f43f5e';
+      } else if (edge.hazardRisk > 0.35) {
+        color = '#fbbf24';
+      } else {
+        color = '#10b981';
+      }
+
+      if (inActiveRoute) {
+        color = activeRouteIsAiSafe ? '#10b981' : '#f43f5e';
+        weight = 7;
+        opacity = 1;
+      } else if (inStepHighlight) {
+        color = '#38bdf8';
+        weight = 6;
+        opacity = 1;
+      }
+
+      const polyline = L.polyline(
+        [
+          [src.lat, src.lng],
+          [tgt.lat, tgt.lng]
+        ],
+        {
+          color,
+          weight,
+          opacity,
+          dashArray
+        }
+      );
+
+      polyline.on('click', () => onSelectEdge(edge.id));
+
+      polyline.bindTooltip(`
+        <div style="font-family: Inter, sans-serif; font-size: 11px;">
+          <div style="font-weight: 700; color: #38bdf8;">${src.name} ➔ ${tgt.name}</div>
+          <div style="color: #cbd5e1;">Type: ${edge.roadType.toUpperCase()} | Dist: ${edge.distance} km</div>
+          <div style="color: ${edge.hazardRisk > 0.6 ? '#f43f5e' : '#34d399'}; font-weight: 600;">
+            Hazard Risk: ${(edge.hazardRisk * 100).toFixed(0)}% | Flow: ${edge.capacity} cap/hr
+          </div>
+          ${edge.isBridge ? '<div style="color: #fb7185; font-weight: 800;">⚠️ Tarjan Critical Bridge</div>' : ''}
+          ${edge.isBlocked ? `<div style="color: #f43f5e; font-weight: 800;">⛔ IMPASSABLE: ${edge.blockageReason || 'Blocked'}</div>` : ''}
+        </div>
+      `, { sticky: true });
+
+      polyline.addTo(edgesLayer);
+    }
+
+    // 3. Render Nodes
+    const activeRouteNodeSet = new Set(activeRoute?.pathNodeIds || []);
+    const stepNodeSet = new Set(selectedStep?.highlightedNodeIds || []);
+
+    for (const node of Object.values(graph.nodes)) {
+      const isSelected = selectedNodeId === node.id;
+      const inActiveRoute = activeRouteNodeSet.has(node.id);
+      const inStep = stepNodeSet.has(node.id);
+
+      // Icon & Marker Styling
+      let iconColor = '#38bdf8';
+      let iconLabel = '•';
+      let size = 24;
+
+      if (node.type === 'shelter') {
+        iconColor = '#a855f7'; // purple
+        iconLabel = '🏠';
+        size = 32;
+      } else if (node.type === 'hospital') {
+        iconColor = '#ec4899'; // pink
+        iconLabel = '🏥';
+        size = 30;
+      } else if (node.type === 'depot') {
+        iconColor = '#0284c7'; // blue
+        iconLabel = '🚚';
+        size = 28;
+      } else if (node.isDistressActive) {
+        iconColor = '#f43f5e';
+        iconLabel = '🆘';
+        size = 32;
+      } else if (node.color) {
+        iconColor = node.color; // Vertex coloring wave color
+        size = 24;
+      }
+
+      if (inActiveRoute) {
+        iconColor = '#10b981';
+        size = 34;
+      }
+
+      const customIcon = L.divIcon({
+        className: 'custom-node-icon',
+        html: `
+          <div style="
+            width: ${size}px;
+            height: ${size}px;
+            background: ${iconColor};
+            border: 2px solid ${isSelected ? '#ffffff' : 'rgba(255,255,255,0.7)'};
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: ${size > 28 ? 14 : 11}px;
+            box-shadow: 0 0 15px ${iconColor}, 0 4px 10px rgba(0,0,0,0.6);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            transform: scale(${isSelected || inStep ? 1.3 : 1});
+          ">
+            ${iconLabel}
+          </div>
+        `,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
+      });
+
+      const marker = L.marker([node.lat, node.lng], { icon: customIcon });
+
+      marker.on('click', () => onSelectNode(node.id));
+
+      marker.bindPopup(`
+        <div style="font-family: Inter, sans-serif; min-width: 170px;">
+          <div style="font-weight: 800; font-size: 13px; color: #38bdf8;">${node.name}</div>
+          <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600;">${node.type} • Elev: ${node.elevation}m</div>
+          <div style="margin-top: 6px; font-size: 11px; color: #e2e8f0;">
+            <div>Population: <b>${node.population.toLocaleString()}</b></div>
+            ${node.capacity ? `<div>Capacity: <b>${node.currentOccupancy || 0} / ${node.capacity}</b></div>` : ''}
+            <div style="color: ${node.hazardRisk > 0.5 ? '#f43f5e' : '#34d399'}; font-weight: 700;">
+              Hazard Risk: ${(node.hazardRisk * 100).toFixed(0)}%
+            </div>
+            ${node.zoneId ? `<div style="color: ${node.color || '#38bdf8'}; font-weight: 700;">Evacuation: ${node.zoneId}</div>` : ''}
+          </div>
+        </div>
+      `);
+
+      marker.addTo(nodesLayer);
+    }
+  }, [
+    graph,
+    hazards,
+    activeRoute,
+    activeRouteIsAiSafe,
+    selectedStep,
+    selectedNodeId,
+    selectedEdgeId,
+    distressCalls,
+    rescueTeams
+  ]);
+
+  return (
+    <div className="w-full h-full min-h-[480px] rounded-xl overflow-hidden border border-slate-800 relative shadow-2xl">
+      <div ref={mapContainerRef} className="w-full h-full min-h-[480px]" />
+
+      {/* Map Legend Overlay */}
+      <div className="absolute bottom-4 left-4 z-[1000] glass-panel px-3 py-2 text-[0.68rem] text-slate-300 flex flex-wrap items-center gap-3 border border-slate-800/90 pointer-events-none">
+        <div className="flex items-center gap-1.5 font-bold text-slate-200">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+          <span>Safe Path</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+          <span>Lethal Hazard</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-purple-400" />
+          <span>Shelter</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-pink-400" />
+          <span>Hospital</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+          <span>SOS Distress</span>
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,20 @@
+Title: AI-Driven Dynamic Escape Planner During Natural Disasters  
+Natural disasters such as floods, earthquakes, landslides, cyclones, and wildfires can make 
+traditional navigation systems unreliable due to road damage, traffic congestion, and 
+changing conditions. This project proposes an AI-driven Dynamic Escape Planner that 
+models transportation networks as dynamic weighted graphs, where intersections, 
+shelters, and critical facilities are vertices, and roads are weighted edges updated in real 
+time using disaster severity, traffic, weather, and road status. The system applies Advanced 
+Graph Algorithms to generate safe evacuation routes. BFS/DFS identify accessible paths, 
+shortest path algorithms compute the safest routes, connectivity analysis evaluates 
+network resilience, and Minimum Spanning Trees (MST) establish efficient emergency 
+communication networks. Network Flow (Max-Flow Min-Cut) optimizes evacuation and 
+resource movement, while matching algorithms allocate rescue teams and shelters 
+efficiently. Vertex coloring manages risk zones and evacuation schedules, Dominating 
+Sets determine optimal emergency hub locations, and TSP optimizes rescue vehicle 
+routes.An AI prediction module analyzes historical disaster data, weather forecasts, traffic, 
+and sensor inputs to predict road closures and continuously update evacuation plans. The 
+system also provides interactive visualizations of hazard zones, shelters, and evacuation 
+routes, enabling faster decision-making. By combining AI with advanced graph algorithms, 
+the proposed solution improves evacuation efficiency, resource allocation, and disaster 
+response while demonstrating practical applications of Advanced Graph Algorithms. 
