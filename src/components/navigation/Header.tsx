@@ -1,7 +1,8 @@
-import React from 'react';
-import { ShieldAlert, Activity, Navigation, Radio, Play, Pause, RefreshCw, Layers } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShieldAlert, Activity, Navigation, Play, Pause, RefreshCw, Layers, CloudRain, PhoneCall } from 'lucide-react';
 import { SCENARIO_PRESETS } from '../../data/defaultGraph';
 import { ScenarioPreset } from '../../types/simulation';
+import { fetchLiveKeralaWeather, KeralaWeatherData, KERALA_EMERGENCY_HOTLINES } from '../../ai/keralaLiveApi';
 
 interface HeaderProps {
   currentScenario: ScenarioPreset;
@@ -24,6 +25,31 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRoutePlanner,
   activeHazardsCount
 }) => {
+  const [liveWeather, setLiveWeather] = useState<KeralaWeatherData | null>(null);
+  const [showHotlines, setShowHotlines] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchLiveKeralaWeather(currentScenario.centerLat, currentScenario.centerLng, currentScenario.name.split(':')[0])
+      .then(data => {
+        if (isMounted) setLiveWeather(data);
+      })
+      .catch(() => {});
+
+    const interval = setInterval(() => {
+      fetchLiveKeralaWeather(currentScenario.centerLat, currentScenario.centerLng, currentScenario.name.split(':')[0])
+        .then(data => {
+          if (isMounted) setLiveWeather(data);
+        })
+        .catch(() => {});
+    }, 60000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [currentScenario.centerLat, currentScenario.centerLng, currentScenario.name]);
+
   const formatTime = (hours: number) => {
     const totalMin = Math.floor(hours * 60);
     const h = Math.floor(totalMin / 60);
@@ -32,33 +58,35 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="w-full px-5 py-3 glass-panel flex flex-wrap items-center justify-between gap-4 z-30 sticky top-0 border-b border-slate-800/80">
-      {/* Brand & Logo */}
+    <header className="w-full px-4 py-2.5 glass-panel flex flex-wrap items-center justify-between gap-3 z-30 sticky top-0 border-b border-slate-800/80">
+      {/* Brand & Kerala Logo */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 via-sky-500 to-emerald-400 flex items-center justify-center shadow-lg shadow-sky-500/20">
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-sky-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 border border-emerald-400/30">
           <ShieldAlert className="w-6 h-6 text-slate-950 font-bold" />
         </div>
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-sky-400 via-cyan-300 to-emerald-300 bg-clip-text text-transparent">
-              PlanEsc
+            <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 via-teal-300 to-sky-300 bg-clip-text text-transparent">
+              PlanEsc Kerala
             </h1>
-            <span className="badge badge-primary text-[0.65rem] tracking-wider">AI Graph Engine</span>
+            <span className="badge badge-emerald text-[0.65rem] tracking-wider">KSDMA AI Engine</span>
           </div>
-          <p className="text-xs text-slate-400 font-medium">
-            AI-Driven Dynamic Disaster Evacuation & Graph Analytics
+          <p className="text-[0.72rem] text-slate-400 font-medium flex items-center gap-1.5">
+            <span className="text-emerald-400/90 font-semibold">കേരള ദുരന്ത നിവാരണ AI</span>
+            <span>•</span>
+            <span>Real-Time Graph Evacuation & Telemetry</span>
           </p>
         </div>
       </div>
 
-      {/* Scenario Selector */}
-      <div className="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-700/60">
-        <Layers className="w-4 h-4 text-sky-400" />
+      {/* Live Kerala Scenario Selector */}
+      <div className="flex items-center gap-2 bg-slate-900/90 px-3 py-1.5 rounded-lg border border-slate-700/80">
+        <Layers className="w-4 h-4 text-emerald-400" />
         <span className="text-xs text-slate-400 font-medium">Scenario:</span>
         <select
           value={currentScenario.id}
           onChange={(e) => onSelectScenario(e.target.value)}
-          className="bg-transparent text-xs text-slate-100 font-semibold focus:outline-none cursor-pointer pr-2"
+          className="bg-transparent text-xs text-slate-100 font-semibold focus:outline-none cursor-pointer pr-2 max-w-[240px] truncate"
         >
           {Object.values(SCENARIO_PRESETS).map((s) => (
             <option key={s.id} value={s.id} className="bg-slate-900 text-slate-200">
@@ -68,30 +96,78 @@ export const Header: React.FC<HeaderProps> = ({
         </select>
       </div>
 
-      {/* Live Disaster Clock & Status */}
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 bg-slate-900/80 px-3 py-1.5 rounded-lg border border-slate-800">
-          <Activity className="w-4 h-4 text-rose-400 animate-pulse" />
-          <span className="text-xs text-slate-400">Simulation Clock:</span>
-          <span className="font-mono text-sm font-bold text-sky-300">{formatTime(timeHours)}</span>
+      {/* Live Kerala Weather & Telemetry Feed */}
+      <div className="flex items-center gap-2.5">
+        {liveWeather && (
+          <div className="hidden lg:flex items-center gap-2 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800 text-xs">
+            <CloudRain className="w-4 h-4 text-sky-400 animate-pulse" />
+            <div className="text-[0.7rem] leading-tight">
+              <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                <span>{liveWeather.temperature.toFixed(1)}°C</span>
+                <span className="text-sky-300">({liveWeather.precipitationMm.toFixed(1)} mm rain)</span>
+              </div>
+              <div className="text-[0.65rem] text-amber-400 font-semibold truncate max-w-[170px]">
+                {liveWeather.alertMessage.split(':')[0]}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live Clock */}
+        <div className="flex items-center gap-2 bg-slate-900/90 px-2.5 py-1.5 rounded-lg border border-slate-800">
+          <Activity className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
+          <span className="text-xs text-slate-400">Clock:</span>
+          <span className="font-mono text-xs font-bold text-sky-300">{formatTime(timeHours)}</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="badge badge-danger flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-            {activeHazardsCount} Active Hazard Zones
-          </span>
-        </div>
+        {/* Active Hazards */}
+        <span className="badge badge-danger text-[0.68rem] flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+          {activeHazardsCount} Hazards Active
+        </span>
       </div>
 
-      {/* Action Buttons */}
-      <div className="flex items-center gap-2">
+      {/* Action Controls & Emergency Quick Dial */}
+      <div className="flex items-center gap-2 relative">
+        <button
+          onClick={() => setShowHotlines(!showHotlines)}
+          className="btn-secondary text-xs py-1.5 px-2.5 text-amber-300 hover:text-amber-200 border-amber-500/30"
+          title="Kerala Emergency Helpline Numbers"
+        >
+          <PhoneCall className="w-3.5 h-3.5 text-amber-400" />
+          <span className="hidden sm:inline">1077 / 112</span>
+        </button>
+
+        {/* Hotlines Dropdown */}
+        {showHotlines && (
+          <div className="absolute top-12 right-0 w-72 glass-panel p-3 border border-amber-500/40 shadow-2xl z-[1000] text-xs space-y-2 animate-in fade-in">
+            <div className="font-bold text-amber-400 flex items-center justify-between border-b border-slate-800 pb-1.5">
+              <span>Kerala Emergency Hotlines</span>
+              <span className="text-[0.65rem] text-slate-400">24x7 Control</span>
+            </div>
+            {KERALA_EMERGENCY_HOTLINES.map(h => (
+              <div key={h.number} className="flex items-center justify-between py-1 border-b border-slate-800/60 text-slate-300">
+                <div>
+                  <div className="font-semibold text-slate-200">{h.name}</div>
+                  <div className="text-[0.65rem] text-slate-400">{h.description}</div>
+                </div>
+                <a
+                  href={`tel:${h.number}`}
+                  className="px-2 py-1 bg-amber-500/20 text-amber-300 font-mono font-bold rounded border border-amber-500/40 hover:bg-amber-500/30"
+                >
+                  {h.number}
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+
         <button
           onClick={onTogglePlay}
           className={isPlaying ? "btn-danger text-xs py-1.5 px-3" : "btn-primary text-xs py-1.5 px-3"}
-          title={isPlaying ? "Pause Simulation" : "Start Simulation"}
+          title={isPlaying ? "Pause Simulation" : "Start Live Disaster Simulation"}
         >
-          {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+          {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
           {isPlaying ? 'Pause' : 'Live Sim'}
         </button>
 
@@ -100,14 +176,14 @@ export const Header: React.FC<HeaderProps> = ({
           className="btn-secondary text-xs py-1.5 px-2.5"
           title="Reset Simulation Clock & Hazards"
         >
-          <RefreshCw className="w-4 h-4" />
+          <RefreshCw className="w-3.5 h-3.5" />
         </button>
 
         <button
           onClick={onOpenRoutePlanner}
-          className="btn-primary text-xs py-1.5 px-3.5 bg-gradient-to-r from-emerald-600 to-teal-500 border-emerald-400/40"
+          className="btn-primary text-xs py-1.5 px-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-sky-600 border-emerald-400/40 text-white font-bold"
         >
-          <Navigation className="w-4 h-4" />
+          <Navigation className="w-3.5 h-3.5" />
           Safe Escape Route
         </button>
       </div>

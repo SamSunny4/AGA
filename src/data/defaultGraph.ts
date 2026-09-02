@@ -1,11 +1,22 @@
 import { GraphData, GraphNode, GraphEdge } from '../types/graph';
 import { ScenarioPreset, DistressCall, RescueTeam } from '../types/simulation';
+import { keralaPeriyarFloodScenario } from './scenarios/keralaPeriyarFlood';
+import { keralaWayanadLandslideScenario } from './scenarios/keralaWayanadLandslide';
+import { keralaCoastalSurgeScenario } from './scenarios/keralaCoastalSurge';
+import { keralaMalabarFloodScenario } from './scenarios/keralaMalabarFlood';
+
+// Fallback legacy presets
 import { coastalFloodScenario } from './scenarios/coastalFlood';
 import { seismicMetroScenario } from './scenarios/seismicMetro';
 import { wildfireForestScenario } from './scenarios/wildfireForest';
 import { mountainLandslideScenario } from './scenarios/mountainLandslide';
 
 export const SCENARIO_PRESETS: Record<string, ScenarioPreset> = {
+  kerala_periyar_flood: keralaPeriyarFloodScenario,
+  kerala_wayanad_landslide: keralaWayanadLandslideScenario,
+  kerala_coastal_surge: keralaCoastalSurgeScenario,
+  kerala_malabar_flood: keralaMalabarFloodScenario,
+  // Standard presets
   coastal_flood: coastalFloodScenario,
   seismic_metro: seismicMetroScenario,
   wildfire_forest: wildfireForestScenario,
@@ -38,12 +49,12 @@ export function getDefaultDistressCalls(scenario: ScenarioPreset): DistressCall[
   for (const node of scenario.nodes) {
     if (node.isDistressActive) {
       calls.push({
-        id: `sos_${idx}`,
+        id: `sos_kerala_${idx}`,
         nodeId: node.id,
-        reportedTimeHours: 0.2 * idx,
-        peopleCount: Math.round(node.population * 0.15) || 50,
-        priority: node.distressPriority || 'P2',
-        description: `Emergency evacuation needed: ${node.name}. Rising water/hazard cutoff.`,
+        reportedTimeHours: 0.15 * idx,
+        peopleCount: Math.round(node.population * 0.18) || 80,
+        priority: node.distressPriority || 'P1',
+        description: `Emergency rescue: ${node.name}. Water level/debris rising rapidly. Immediate evacuation required.`,
         status: 'pending'
       });
       idx++;
@@ -60,39 +71,39 @@ export function getDefaultRescueTeams(scenario: ScenarioPreset): RescueTeam[] {
 
   return [
     {
-      id: 'team_alpha',
-      name: 'Alpha Rapid Medical Unit',
-      type: 'medical_ambulance',
-      capacity: 12,
-      currentNodeId: base1,
-      speedKmH: 60,
-      status: 'idle'
-    },
-    {
-      id: 'team_bravo',
-      name: 'Bravo Water & Amphibious Rescue',
+      id: 'team_kerala_ndrf',
+      name: 'NDRF 04 Battalion & Kerala Fire Force',
       type: 'boat_amphibious',
-      capacity: 30,
+      capacity: 35,
       currentNodeId: base1,
-      speedKmH: 40,
+      speedKmH: 45,
       status: 'idle'
     },
     {
-      id: 'team_charlie',
-      name: 'Charlie Heavy Fire & Debris Unit',
+      id: 'team_kerala_army',
+      name: 'Indian Army Madras Sappers & Engineering Task Force',
       type: 'fire_rescue',
-      capacity: 20,
-      currentNodeId: base2,
-      speedKmH: 50,
+      capacity: 25,
+      currentNodeId: base1,
+      speedKmH: 55,
       status: 'idle'
     },
     {
-      id: 'team_delta',
-      name: 'Delta Airborne Recon & Air-Drop',
-      type: 'air_helicopter',
-      capacity: 8,
+      id: 'team_kerala_medical',
+      name: 'Kerala Health Services Rapid Trauma & Ambulance Unit',
+      type: 'medical_ambulance',
+      capacity: 15,
       currentNodeId: base2,
-      speedKmH: 150,
+      speedKmH: 70,
+      status: 'idle'
+    },
+    {
+      id: 'team_kerala_air_navy',
+      name: 'Indian Navy & Coast Guard Sea King / ALH Heli-Rescue',
+      type: 'air_helicopter',
+      capacity: 12,
+      currentNodeId: base2,
+      speedKmH: 180,
       status: 'idle'
     }
   ];

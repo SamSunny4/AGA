@@ -195,9 +195,9 @@ export const AlgorithmSelector: React.FC<AlgorithmSelectorProps> = ({
                       {algo.description}
                     </p>
 
-                    <div className="flex items-center justify-between mt-1 pt-1 border-t border-slate-800/60 text-[0.65rem] font-mono text-slate-400">
-                      <span>Complexity:</span>
-                      <span className="text-sky-400 font-semibold">{algo.complexity}</span>
+                    <div className="flex items-center justify-between mt-1 pt-1.5 border-t border-slate-800/80 text-[0.65rem] font-mono text-slate-400">
+                      <span className="shrink-0 text-slate-500">Complexity:</span>
+                      <span className="text-sky-400 font-semibold whitespace-nowrap">{algo.complexity}</span>
                     </div>
                   </button>
                 );

@@ -2,10 +2,10 @@
 
 :root {
   --bg-main: #060913;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-card-hover: rgba(30, 41, 59, 0.85);
+  --bg-card: rgba(15, 23, 42, 0.78);
+  --bg-card-hover: rgba(30, 41, 59, 0.90);
   --border-card: rgba(255, 255, 255, 0.08);
-  --border-glow: rgba(56, 189, 248, 0.3);
+  --border-glow: rgba(56, 189, 248, 0.35);
   --primary: #38bdf8;
   --primary-glow: rgba(56, 189, 248, 0.4);
   --accent-safe: #10b981;
@@ -37,7 +37,7 @@ h1, h2, h3, h4, .font-heading {
 }
 
 code, pre, .font-mono {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 /* Glassmorphism Classes */
@@ -47,7 +47,7 @@ code, pre, .font-mono {
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border-card);
   border-radius: 12px;
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.45);
 }
 
 .glass-panel-glow {
@@ -58,9 +58,9 @@ code, pre, .font-mono {
 }
 
 .glass-card-sm {
-  background: rgba(30, 41, 59, 0.6);
+  background: rgba(30, 41, 59, 0.65);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 8px;
 }
 
@@ -73,26 +73,69 @@ code, pre, .font-mono {
   background: rgba(15, 23, 42, 0.6);
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(56, 189, 248, 0.3);
+  background: rgba(56, 189, 248, 0.35);
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(56, 189, 248, 0.6);
+  background: rgba(56, 189, 248, 0.7);
 }
 
-/* Custom Map Dark Styles */
+/* Custom Map Dark Styles & Safe Layer Stacking */
 .leaflet-container {
   background: #090d16 !important;
   font-family: 'Inter', sans-serif;
+  z-index: 10 !important;
 }
 
-.leaflet-tile {
-  filter: brightness(0.65) invert(1) contrast(1.4) hue-rotate(200deg) saturate(0.3) !important;
+.leaflet-pane {
+  z-index: 200 !important;
+}
+
+.leaflet-tile-pane {
+  z-index: 150 !important;
+}
+
+.leaflet-overlay-pane {
+  z-index: 250 !important;
+}
+
+.leaflet-marker-pane {
+  z-index: 350 !important;
+}
+
+.leaflet-tooltip-pane {
+  z-index: 400 !important;
+}
+
+.leaflet-popup-pane {
+  z-index: 450 !important;
+}
+
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 480 !important;
+}
+
+/* Dark mode filter applied conditionally to standard OSM tiles for sleek tactical look */
+.tile-dark-tactical .leaflet-tile {
+  filter: brightness(0.65) invert(1) contrast(1.4) hue-rotate(200deg) saturate(0.35) !important;
+}
+
+.tile-osm .leaflet-tile {
+  filter: brightness(0.9) contrast(1.1) !important;
+}
+
+.tile-satellite .leaflet-tile {
+  filter: brightness(0.85) contrast(1.15) !important;
+}
+
+.tile-topo .leaflet-tile {
+  filter: brightness(0.8) contrast(1.2) hue-rotate(10deg) !important;
 }
 
 .leaflet-control-zoom {
-  border: 1px solid rgba(255, 255, 255, 0.1) !important;
-  background: rgba(15, 23, 42, 0.85) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(15, 23, 42, 0.9) !important;
   backdrop-filter: blur(12px) !important;
   border-radius: 8px !important;
   overflow: hidden;
@@ -105,20 +148,21 @@ code, pre, .font-mono {
 }
 
 .leaflet-control-zoom a:hover {
-  background: rgba(56, 189, 248, 0.15) !important;
+  background: rgba(56, 189, 248, 0.2) !important;
+  color: #ffffff !important;
 }
 
 .leaflet-popup-content-wrapper {
-  background: rgba(15, 23, 42, 0.92) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
   backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(56, 189, 248, 0.3) !important;
+  border: 1px solid rgba(56, 189, 248, 0.4) !important;
   color: #f8fafc !important;
   border-radius: 10px !important;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6) !important;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7) !important;
 }
 
 .leaflet-popup-tip {
-  background: rgba(15, 23, 42, 0.92) !important;
+  background: rgba(15, 23, 42, 0.95) !important;
 }
 
 /* Pulse Animations */
@@ -148,6 +192,20 @@ code, pre, .font-mono {
   animation: flow-dash 1s linear infinite;
 }
 
+/* Modal High Stacking Layer */
+.modal-overlay {
+  z-index: 99999 !important;
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background-color: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
 /* Badge & Indicator Utilities */
 .badge {
   display: inline-flex;
@@ -159,6 +217,7 @@ code, pre, .font-mono {
   border-radius: 9999px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  white-space: nowrap;
 }
 
 .badge-danger {
@@ -189,6 +248,12 @@ code, pre, .font-mono {
   background: rgba(168, 85, 247, 0.18);
   color: #c084fc;
   border: 1px solid rgba(168, 85, 247, 0.4);
+}
+
+.badge-emerald {
+  background: rgba(5, 150, 105, 0.22);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.4);
 }
 
 /* Button & Interactive styles */

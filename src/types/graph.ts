@@ -59,6 +59,7 @@ export interface HazardZone {
   radiusKm: number;
   intensity: number; // 0 to 1
   expansionRateKmH: number; // growth per hour
+  directionDeg?: number; // propagation heading degrees
   windAngleDeg?: number; // for wildfire / cyclone (0 = East, 90 = North)
   windSpeedKmH?: number;
   waterLevelMeters?: number; // for floods

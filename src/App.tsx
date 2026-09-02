@@ -32,8 +32,8 @@ import { AlertTriangle, BellRing, Sparkles } from 'lucide-react';
 
 export function App() {
   // Scenario State
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('coastal_flood');
-  const scenario: ScenarioPreset = useMemo(() => SCENARIO_PRESETS[selectedScenarioId] || SCENARIO_PRESETS.coastal_flood, [selectedScenarioId]);
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('kerala_periyar_flood');
+  const scenario: ScenarioPreset = useMemo(() => SCENARIO_PRESETS[selectedScenarioId] || SCENARIO_PRESETS.kerala_periyar_flood, [selectedScenarioId]);
 
   // Graph and Simulation States
   const [graph, setGraph] = useState<GraphData>(() => buildGraphFromScenario(scenario));
