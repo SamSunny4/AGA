@@ -1,7 +1,7 @@
 import { ScenarioPreset } from '../../types/simulation';
 import { GraphNode, GraphEdge, HazardZone } from '../../types/graph';
 
-// Scenario 3: South Kerala Coastal Storm Surge & Cyclone Alert (തിരുവനന്തപുരം - കൊല്ലം തീരദേശ ചുഴലിക്കാറ്റ്)
+// Scenario 3: South Kerala Coastal Storm Surge & Cyclone Alert (Thiruvananthapuram - Kollam Coastal Cyclone)
 // Real Kerala geographic coordinates (Lat 8.35 to 8.95, Lng 76.55 to 77.05)
 const nodes: GraphNode[] = [
   // High Ground Shelters & Medical Campuses
@@ -325,7 +325,7 @@ const initialHazards: HazardZone[] = [
 
 export const keralaCoastalSurgeScenario: ScenarioPreset = {
   id: 'kerala_coastal_surge',
-  name: 'South Kerala Coastal Surge & Cyclone Alert (തിരുവനന്തപുരം - കൊല്ലം തീരദേശ അടിയന്തരാവസ്ഥ)',
+  name: 'South Kerala Coastal Surge & Cyclone Alert (Thiruvananthapuram - Kollam Coastal Emergency)',
   disasterType: 'cyclone',
   description: 'Deep depression in the Arabian Sea bringing severe coastal wave surges, storm tides, and gale-force squalls across Shanghumugham, Vizhinjam, Varkala, and Kollam shorelines.',
   centerLat: 8.5200,

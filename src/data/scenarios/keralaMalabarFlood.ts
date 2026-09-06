@@ -1,7 +1,7 @@
 import { ScenarioPreset } from '../../types/simulation';
 import { GraphNode, GraphEdge, HazardZone } from '../../types/graph';
 
-// Scenario 4: Malabar & Chaliyar River Inundation (കോഴിക്കോട് - ചാലിയാർ പ്രളയം)
+// Scenario 4: Malabar & Chaliyar River Inundation (Kozhikode - Chaliyar Floods)
 // Real Kerala geographic coordinates (Lat 11.15 to 11.90, Lng 75.35 to 75.95)
 const nodes: GraphNode[] = [
   // High-Capacity Medical & Relief Sanctuaries
@@ -307,7 +307,7 @@ const initialHazards: HazardZone[] = [
 
 export const keralaMalabarFloodScenario: ScenarioPreset = {
   id: 'kerala_malabar_flood',
-  name: 'Malabar Chaliyar River Flooding (കോഴിക്കോട് ചാലിയാർ പ്രളയം)',
+  name: 'Malabar Chaliyar River Flooding (Kozhikode Chaliyar Flooding)',
   disasterType: 'flood',
   description: 'Unprecedented rainfall in Nilambur & Wayanad catchment surges down the Chaliyar river basin, inundating Mavoor, Feroke, and low-lying Kozhikode coastal tracts.',
   centerLat: 11.2600,

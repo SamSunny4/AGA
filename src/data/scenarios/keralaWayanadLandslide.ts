@@ -1,7 +1,7 @@
 import { ScenarioPreset } from '../../types/simulation';
 import { GraphNode, GraphEdge, HazardZone } from '../../types/graph';
 
-// Scenario 2: Wayanad Landslides & Western Ghats Flash Floods (മുണ്ടക്കൈ - ചൂരൽമല ഉരുൾപൊട്ടൽ)
+// Scenario 2: Wayanad Landslides & Western Ghats Flash Floods (Mundakkai - Chooralmala Landslides)
 // Real Kerala geographic coordinates (Lat 11.50 to 11.85, Lng 75.90 to 76.28)
 const nodes: GraphNode[] = [
   // Medical & High-Ground Safe Relief Hubs
@@ -342,7 +342,7 @@ const initialHazards: HazardZone[] = [
 
 export const keralaWayanadLandslideScenario: ScenarioPreset = {
   id: 'kerala_wayanad_landslide',
-  name: 'Wayanad Ghats Landslide Catastrophe (വയനാട് ചൂരൽമല ഉരുൾപൊട്ടൽ)',
+  name: 'Wayanad Ghats Landslide Catastrophe (Wayanad Chooralmala Landslides)',
   disasterType: 'landslide',
   description: 'Catastrophic hill collapses and debris flows triggered by extreme cloudbursts in Mundakkai and Chooralmala. NDRF, Indian Army Bailey Bridge teams, and emergency helicopters deployed.',
   centerLat: 11.5600,
