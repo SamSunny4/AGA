@@ -91,7 +91,7 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="badge badge-emerald text-[0.65rem] tracking-wider">KSDMA AI Engine</span>
           </div>
           <p className="text-[0.72rem] text-slate-400 font-medium flex items-center gap-1.5">
-            <span className="text-emerald-400/90 font-semibold">കേരള ദുരന്ത നിവാരണ AI</span>
+            <span className="text-emerald-400/90 font-semibold">Disaster Response AI</span>
             <span>•</span>
             <span>Real-Time Graph Evacuation & Telemetry</span>
           </p>

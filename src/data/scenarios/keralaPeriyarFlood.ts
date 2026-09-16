@@ -486,7 +486,7 @@ const initialHazards: HazardZone[] = [
 
 export const keralaPeriyarFloodScenario: ScenarioPreset = {
   id: 'kerala_periyar_flood',
-  name: 'Kerala Monsoon Deluge: Periyar & Kuttanad Floods (എറണാകുളം - കുട്ടനാട് പ്രളയം)',
+  name: 'Kerala Monsoon Deluge: Periyar & Kuttanad Floods (Ernakulam - Kuttanad Floods)',
   disasterType: 'flood',
   description: 'Severe monsoon downpour and Idukki/Idamalayar dam shutter discharge cause torrential overflow along the Periyar and Chalakudy river basins and severe submergence across Kuttanad.',
   centerLat: 10.0200,
