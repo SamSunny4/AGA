@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Activity, Navigation, Play, Pause, RefreshCw, Layers, CloudRain, PhoneCall } from 'lucide-react';
+import { ShieldAlert, Activity, Navigation, Play, Pause, RefreshCw, Layers, CloudRain, PhoneCall, Zap, Server } from 'lucide-react';
 import { SCENARIO_PRESETS } from '../../data/defaultGraph';
 import { ScenarioPreset } from '../../types/simulation';
 import { fetchLiveKeralaWeather, KeralaWeatherData, KERALA_EMERGENCY_HOTLINES } from '../../ai/keralaLiveApi';
+import { checkBackendHealth } from '../../api/backendClient';
 
 interface HeaderProps {
   currentScenario: ScenarioPreset;
@@ -13,6 +14,7 @@ interface HeaderProps {
   onReset: () => void;
   onOpenRoutePlanner: () => void;
   activeHazardsCount: number;
+  backendOnline?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,10 +25,27 @@ export const Header: React.FC<HeaderProps> = ({
   timeHours,
   onReset,
   onOpenRoutePlanner,
-  activeHazardsCount
+  activeHazardsCount,
+  backendOnline
 }) => {
   const [liveWeather, setLiveWeather] = useState<KeralaWeatherData | null>(null);
   const [showHotlines, setShowHotlines] = useState<boolean>(false);
+  const [isBackendOnline, setIsBackendOnline] = useState<boolean>(backendOnline ?? false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const updateBackendStatus = () => {
+      checkBackendHealth().then(res => {
+        if (isMounted) setIsBackendOnline(res.isOnline);
+      });
+    };
+    updateBackendStatus();
+    const interval = setInterval(updateBackendStatus, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -125,6 +144,19 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
           {activeHazardsCount} Hazards Active
         </span>
+
+        {/* Python Backend Engine Status */}
+        {isBackendOnline ? (
+          <span className="badge badge-emerald text-[0.68rem] flex items-center gap-1.5 border-emerald-400/50 bg-emerald-950/40 text-emerald-300 shadow-sm" title="FastAPI Python 3.13 backend connected">
+            <Zap className="w-3 h-3 text-emerald-400 fill-current animate-pulse" />
+            <span>Python Backend: Online</span>
+          </span>
+        ) : (
+          <span className="badge badge-warning text-[0.68rem] flex items-center gap-1.5 border-amber-500/40 bg-amber-950/40 text-amber-300" title="Running in high-speed local engine fallback">
+            <Server className="w-3 h-3 text-amber-400" />
+            <span>Backend: Local Engine</span>
+          </span>
+        )}
       </div>
 
       {/* Action Controls & Emergency Quick Dial */}

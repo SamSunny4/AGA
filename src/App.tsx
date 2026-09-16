@@ -16,6 +16,7 @@ import { ScenarioPreset, DistressCall, RescueTeam, WeatherCondition } from './ty
 
 import { computePointHazardRisk, advanceHazards } from './ai/hazardSpread';
 import { predictFutureRoadRisks } from './ai/roadRiskPredictor';
+import { executeAlgorithmApi } from './api/backendClient';
 
 // Algorithm Suite Imports
 import { runBfsReachability, findConnectedComponents } from './algorithms/bfsDfs';
@@ -87,81 +88,36 @@ export function App() {
     handleSelectScenario(selectedScenarioId);
   }, [selectedScenarioId, handleSelectScenario]);
 
-  // Execute Chosen Algorithm
-  const executeAlgorithm = useCallback((algoId: string, currentGraph: GraphData) => {
-    let res: AlgorithmExecutionResult | null = null;
+  // Execute Chosen Algorithm (Python FastAPI Backend with Local Engine Fallback)
+  const executeAlgorithm = useCallback(async (algoId: string, currentGraph: GraphData) => {
     const nodeIds = Object.keys(currentGraph.nodes);
     const shelters = Object.values(currentGraph.nodes).filter(n => n.type === 'shelter' || n.type === 'hospital');
     const startNode = selectedNodeId || nodeIds[0];
     const targetShelter = shelters[0]?.id || nodeIds[nodeIds.length - 1];
 
-    switch (algoId) {
-      case 'dijkstra_safe': {
-        const dijkstraRes = runDijkstraSafePath(currentGraph, startNode, targetShelter, true);
-        res = dijkstraRes.execution;
-        if (dijkstraRes.route) {
-          setActiveRoute(dijkstraRes.route);
-          setActiveRouteIsAiSafe(true);
-        }
-        break;
-      }
-      case 'astar_safe': {
-        res = runAStarSafePath(currentGraph, startNode, targetShelter);
-        break;
-      }
-      case 'bfs_reachability': {
-        res = runBfsReachability(currentGraph, startNode);
-        break;
-      }
-      case 'dfs_components': {
-        res = findConnectedComponents(currentGraph);
-        break;
-      }
-      case 'tarjan_bridges': {
-        res = runTarjanResilienceAnalysis(currentGraph);
-        break;
-      }
-      case 'kruskal_mst': {
-        res = runKruskalEmergencyBackbone(currentGraph);
-        break;
-      }
-      case 'dinic_maxflow': {
-        res = runDinicMaxEvacuationFlow(currentGraph);
-        break;
-      }
-      case 'bipartite_matching': {
-        const matchRes = runRescueTeamMatching(currentGraph, rescueTeams, distressCalls);
-        res = matchRes.execution;
-        // Update assigned teams in distress calls
-        if (matchRes.matches.length > 0) {
-          setDistressCalls(prev => prev.map(c => {
-            const m = matchRes.matches.find(match => match.distressId === c.id);
-            return m ? { ...c, assignedTeamId: m.teamId, status: 'dispatched' } : c;
-          }));
-        }
-        break;
-      }
-      case 'shelter_allocation': {
-        const allocRes = runShelterAllocationMatching(currentGraph);
-        res = allocRes.execution;
-        break;
-      }
-      case 'vertex_coloring': {
-        res = runVertexColoringSchedule(currentGraph);
-        break;
-      }
-      case 'dominating_set': {
-        res = runDominatingSetHubPlacement(currentGraph);
-        break;
-      }
-      case 'tsp_rescue': {
-        res = runTspRescueTour(currentGraph, shelters[0]?.id);
-        break;
-      }
-      case 'bellman_ford': {
-        res = runBellmanFordSafetyCheck(currentGraph, startNode);
-        break;
-      }
+    const response = await executeAlgorithmApi(algoId, currentGraph, {
+      startNodeId: startNode,
+      targetNodeId: targetShelter,
+      useAiSafety: true,
+      teams: rescueTeams,
+      distressCalls: distressCalls,
+      coverageRadiusKm: 3.5,
+      numVehicles: 3
+    });
+
+    const res = response.execution;
+
+    if (response.route) {
+      setActiveRoute(response.route);
+      setActiveRouteIsAiSafe(true);
+    }
+
+    // Update assigned teams in distress calls if bipartite matching ran
+    if (response.matches && response.matches.length > 0) {
+      setDistressCalls(prev => prev.map(c => {
+        const m = response.matches?.find(match => match.distressId === c.id);
+        return m ? { ...c, assignedTeamId: m.teamId, status: 'dispatched' } : c;
+      }));
     }
 
     if (res) {
@@ -194,6 +150,51 @@ export function App() {
     setSelectedAlgorithmId(id);
     executeAlgorithm(id, graph);
   };
+
+  // Distress Call Management Functions
+  const handleResolveDistressCall = useCallback((callId: string) => {
+    setDistressCalls(prev => prev.map(c => c.id === callId ? { ...c, status: 'rescued' } : c));
+    setGraph(prev => {
+      const call = distressCalls.find(c => c.id === callId);
+      if (!call || !prev.nodes[call.nodeId]) return prev;
+      return {
+        ...prev,
+        nodes: {
+          ...prev.nodes,
+          [call.nodeId]: {
+            ...prev.nodes[call.nodeId],
+            isDistressActive: false
+          }
+        }
+      };
+    });
+  }, [distressCalls]);
+
+  const handleAddDistressCall = useCallback(() => {
+    const targetId = selectedNodeId || Object.keys(graph.nodes)[Math.floor(Math.random() * Object.keys(graph.nodes).length)];
+    const node = graph.nodes[targetId];
+    const newCall: DistressCall = {
+      id: `sos_live_${Date.now()}`,
+      nodeId: targetId,
+      reportedTimeHours: timeHours,
+      peopleCount: Math.round((node?.population || 300) * 0.25) || 50,
+      priority: 'P1',
+      description: `Rapid hazard onset at ${node?.name || targetId}: Emergency evacuation required.`,
+      status: 'pending'
+    };
+    setDistressCalls(prev => [newCall, ...prev]);
+    setGraph(prev => ({
+      ...prev,
+      nodes: {
+        ...prev.nodes,
+        [targetId]: {
+          ...prev.nodes[targetId],
+          isDistressActive: true,
+          distressPriority: 'P1'
+        }
+      }
+    }));
+  }, [selectedNodeId, graph.nodes, timeHours]);
 
   // Simulation Advance Step Function
   const advanceSimulation = useCallback((dtHours: number) => {
@@ -449,6 +450,9 @@ export function App() {
               graph={graph}
               onTriggerRescueMatching={() => handleSelectAlgorithm('bipartite_matching')}
               onSelectCall={(call) => setSelectedNodeId(call.nodeId)}
+              onResolveCall={handleResolveDistressCall}
+              onAddDistressCall={handleAddDistressCall}
+              selectedNodeName={selectedNodeId ? graph.nodes[selectedNodeId]?.name : undefined}
             />
           </div>
         </div>

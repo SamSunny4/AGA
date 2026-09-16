@@ -72,6 +72,22 @@ export const ALGORITHM_OPTIONS: AlgorithmOption[] = [
     complexity: 'O(E log E)'
   },
   {
+    id: 'prim_mst',
+    name: "Prim's Frontier Spanning Tree (MST)",
+    category: 'Resilience',
+    description: 'Expands connected logistics tree from relief depot along lowest hazard edges.',
+    icon: <Share2 className="w-4 h-4 text-violet-400" />,
+    complexity: 'O((V + E) log V)'
+  },
+  {
+    id: 'floyd_warshall',
+    name: 'Floyd-Warshall All-Pairs Matrix',
+    category: 'Routing',
+    description: 'Computes complete dynamic safe distance matrix between all shelters and hubs.',
+    icon: <Activity className="w-4 h-4 text-sky-400" />,
+    complexity: 'O(V³)'
+  },
+  {
     id: 'dinic_maxflow',
     name: "Dinic's Max-Flow & Min-Cut",
     category: 'Flow & Allocation',
@@ -118,6 +134,14 @@ export const ALGORITHM_OPTIONS: AlgorithmOption[] = [
     description: 'Optimizes multi-stop ambulance and supply delivery routes through distress sites.',
     icon: <Truck className="w-4 h-4 text-green-400" />,
     complexity: 'O(N²)'
+  },
+  {
+    id: 'cvrp_rescue',
+    name: 'Capacitated VRP Fleet Dispatch',
+    category: 'Planning & Logistics',
+    description: 'Optimizes multi-vehicle convoy fleet routes with capacity constraints for evacuees.',
+    icon: <Truck className="w-4 h-4 text-teal-400" />,
+    complexity: 'O(K · N²)'
   },
   {
     id: 'bellman_ford',

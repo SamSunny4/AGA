@@ -145,3 +145,93 @@ export function runTspRescueTour(
     }
   };
 }
+
+export function runCapacitatedVrpDispatch(
+  graph: GraphData,
+  numVehicles: number = 3,
+  vehicleCapacity: number = 150
+): AlgorithmExecutionResult {
+  const startTime = performance.now();
+  const steps: AlgorithmStep[] = [];
+
+  const depot = Object.values(graph.nodes).find(n => n.type === 'hospital' || n.type === 'depot')?.id || Object.keys(graph.nodes)[0];
+
+  const customers = Object.values(graph.nodes)
+    .filter(n => n.id !== depot && (n.type === 'residential' || n.isDistressActive || n.hazardRisk > 0.25))
+    .map(n => n.id);
+
+  const targetCustomers = customers.length > 0 ? customers : Object.keys(graph.nodes).filter(id => id !== depot).slice(0, 8);
+
+  steps.push({
+    stepIndex: 0,
+    description: `Capacitated VRP solver initialized with ${numVehicles} rescue convoys (Capacity: ${vehicleCapacity} evacuees) serving ${targetCustomers.length} distress zones from depot "${graph.nodes[depot]?.name}".`,
+    highlightedNodeIds: [depot, ...targetCustomers],
+    highlightedEdgeIds: []
+  });
+
+  const routes: string[][] = Array.from({ length: numVehicles }, () => []);
+  const routeLoads: number[] = Array(numVehicles).fill(0);
+
+  const sortedCustomers = [...targetCustomers].sort((a, b) => {
+    return (graph.nodes[b]?.hazardRisk || 0) - (graph.nodes[a]?.hazardRisk || 0);
+  });
+
+  for (const c of sortedCustomers) {
+    const demand = Math.min(vehicleCapacity, Math.max(30, Math.round((graph.nodes[c]?.population || 200) * 0.2)));
+    let assigned = false;
+    for (let v = 0; v < numVehicles; v++) {
+      if (routeLoads[v] + demand <= vehicleCapacity) {
+        routes[v].push(c);
+        routeLoads[v] += demand;
+        assigned = true;
+        break;
+      }
+    }
+    if (!assigned) {
+      let minV = 0;
+      for (let v = 1; v < numVehicles; v++) {
+        if (routeLoads[v] < routeLoads[minV]) minV = v;
+      }
+      routes[minV].push(c);
+      routeLoads[minV] += demand;
+    }
+  }
+
+  let totalFleetDist = 0;
+  for (let v = 0; v < numVehicles; v++) {
+    if (routes[v].length === 0) continue;
+    const fullRoute = [depot, ...routes[v], depot];
+    let routeDist = 0;
+    for (let i = 0; i < fullRoute.length - 1; i++) {
+      routeDist += getDistance(graph.nodes[fullRoute[i]], graph.nodes[fullRoute[i + 1]]);
+    }
+    totalFleetDist += routeDist;
+
+    const routeNames = fullRoute.map(id => graph.nodes[id]?.name || id).join(' ➔ ');
+    steps.push({
+      stepIndex: steps.length,
+      description: `Convoy #${v + 1} Route (${routeDist.toFixed(1)}km, Load: ${routeLoads[v]}/${vehicleCapacity} evacuees): ${routeNames}`,
+      highlightedNodeIds: fullRoute,
+      highlightedEdgeIds: []
+    });
+  }
+
+  const elapsed = performance.now() - startTime;
+  const activeRoutes = routes.filter(r => r.length > 0).length;
+  const totalServed = routeLoads.reduce((a, b) => a + b, 0);
+
+  return {
+    algorithmName: 'Capacitated Vehicle Routing Problem (CVRP Fleet Logistics)',
+    executionTimeMs: Math.round(elapsed * 100) / 100,
+    summary: `Optimized fleet routes for ${activeRoutes} emergency rescue convoys accommodating ${totalServed} evacuees across ${totalFleetDist.toFixed(1)} km total distance.`,
+    steps,
+    customMetrics: {
+      'Active Rescue Convoys': activeRoutes,
+      'Total Fleet Distance': `${totalFleetDist.toFixed(1)} km`,
+      'Total Evacuees Accommodated': totalServed,
+      'Avg Distance / Vehicle': `${(totalFleetDist / Math.max(activeRoutes, 1)).toFixed(1)} km`,
+      'Execution Speed': `${Math.round(elapsed * 100) / 100} ms`
+    }
+  };
+}
+

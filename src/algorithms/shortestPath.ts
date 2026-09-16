@@ -230,16 +230,19 @@ export function runAStarSafePath(
   graph: GraphData,
   startNodeId: string,
   targetNodeId: string
-): AlgorithmExecutionResult {
+): { route: RouteResult | null; execution: AlgorithmExecutionResult } {
   const startTime = performance.now();
   const targetNode = graph.nodes[targetNodeId];
   const startNode = graph.nodes[startNodeId];
   if (!startNode || !targetNode) {
     return {
-      algorithmName: 'A* Heuristic Safe Routing',
-      executionTimeMs: 0,
-      summary: 'Invalid start or target node',
-      steps: []
+      route: null,
+      execution: {
+        algorithmName: 'A* Heuristic Safe Routing',
+        executionTimeMs: 0,
+        summary: 'Invalid start or target node',
+        steps: []
+      }
     };
   }
 
@@ -330,18 +333,91 @@ export function runAStarSafePath(
   }
 
   const elapsed = performance.now() - startTime;
+
+  if (!reached || pathNodeIds.length === 0) {
+    return {
+      route: null,
+      execution: {
+        algorithmName: 'A* Heuristic Safe Routing',
+        executionTimeMs: Math.round(elapsed * 100) / 100,
+        summary: 'Destination unreachable due to impassable disaster hazard zones.',
+        steps,
+        customMetrics: {
+          'Target Reached': 'NO',
+          'Nodes Expanded': closedSet.size,
+          'Path Length': 0,
+          'Execution Speed': `${Math.round(elapsed * 100) / 100} ms`
+        }
+      }
+    };
+  }
+
+  let totalDistanceKm = 0;
+  let totalEstimatedTimeMin = 0;
+  let maxRiskEncountered = 0;
+  let sumRisk = 0;
+  const bottlenecks: string[] = [];
+  const routeSteps: RouteResult['steps'] = [];
+
+  for (let i = 0; i < pathEdgeIds.length; i++) {
+    const edge = graph.edges[pathEdgeIds[i]];
+    const fromNode = graph.nodes[pathNodeIds[i]];
+    const toNode = graph.nodes[pathNodeIds[i + 1]];
+    totalDistanceKm += edge.distance;
+    const legTime = (edge.distance / Math.max(edge.baseSpeed * (1 - edge.trafficDensity * 0.5), 10)) * 60;
+    totalEstimatedTimeMin += legTime;
+    maxRiskEncountered = Math.max(maxRiskEncountered, edge.hazardRisk);
+    sumRisk += edge.hazardRisk;
+
+    if (edge.hazardRisk > 0.4 || edge.isBridge) {
+      bottlenecks.push(`Segment ${fromNode.name} -> ${toNode.name} (${edge.roadType}) [Risk: ${(edge.hazardRisk * 100).toFixed(0)}%]`);
+    }
+
+    routeSteps.push({
+      instruction: `Head from ${fromNode.name} toward ${toNode.name} via ${edge.roadType.toUpperCase()}`,
+      distanceKm: Math.round(edge.distance * 10) / 10,
+      roadName: `${fromNode.name} – ${toNode.name} Corridor`,
+      hazardWarning: edge.hazardRisk > 0.3 ? `Elevated Hazard Risk (${(edge.hazardRisk * 100).toFixed(0)}%)` : undefined
+    });
+  }
+
+  const avgRisk = pathEdgeIds.length > 0 ? sumRisk / pathEdgeIds.length : 0;
+  const safetyScore = Math.max(0, Math.min(100, Math.round((1 - avgRisk) * 100 - maxRiskEncountered * 20)));
+
+  const route: RouteResult = {
+    pathNodeIds,
+    pathEdgeIds,
+    totalDistanceKm: Math.round(totalDistanceKm * 10) / 10,
+    estimatedTimeMin: Math.round(totalEstimatedTimeMin),
+    safetyScore,
+    hazardExposureRisk: Math.round(maxRiskEncountered * 100) / 100,
+    isPassable: true,
+    bottlenecks,
+    steps: routeSteps
+  };
+
+  steps.push({
+    stepIndex: steps.length,
+    description: `A* successfully converged to optimal safe corridor with ${pathNodeIds.length} vertices and safety score ${safetyScore}/100.`,
+    highlightedNodeIds: pathNodeIds,
+    highlightedEdgeIds: pathEdgeIds,
+    visitedNodeIds: Array.from(closedSet)
+  });
+
   return {
-    algorithmName: 'A* Heuristic Safe Routing',
-    executionTimeMs: Math.round(elapsed * 100) / 100,
-    summary: reached
-      ? `A* successfully converged in ${closedSet.size} vertex expansions (fewer than Dijkstra).`
-      : 'Destination unreachable.',
-    steps,
-    customMetrics: {
-      'Target Reached': reached ? 'YES' : 'NO',
-      'Nodes Expanded': closedSet.size,
-      'Path Length': pathNodeIds.length,
-      'Execution Speed': `${Math.round(elapsed * 100) / 100} ms`
+    route,
+    execution: {
+      algorithmName: 'A* Heuristic Safe Routing',
+      executionTimeMs: Math.round(elapsed * 100) / 100,
+      summary: `A* successfully converged in ${closedSet.size} vertex expansions (fewer than Dijkstra). Safety Score: ${safetyScore}/100.`,
+      steps,
+      customMetrics: {
+        'Target Reached': 'YES',
+        'Nodes Expanded': closedSet.size,
+        'Path Length': pathNodeIds.length,
+        'Total Distance': `${totalDistanceKm.toFixed(1)} km`,
+        'Execution Speed': `${Math.round(elapsed * 100) / 100} ms`
+      }
     }
   };
 }
@@ -400,6 +476,72 @@ export function runBellmanFordSafetyCheck(
       'Relaxation Iterations': nodeCount - 1,
       'Convergence Status': 'STABLE (No Negative Hazard Cycles)',
       'Total Edges Analyzed': edgesList.length
+    }
+  };
+}
+
+export function runFloydWarshallAllPairs(graph: GraphData): AlgorithmExecutionResult {
+  const startTime = performance.now();
+  const nodeIds = Object.keys(graph.nodes);
+  const n = nodeIds.length;
+  const idxMap: Record<string, number> = {};
+  nodeIds.forEach((id, i) => { idxMap[id] = i; });
+
+  const dist: number[][] = Array.from({ length: n }, () => Array(n).fill(Infinity));
+  for (let i = 0; i < n; i++) dist[i][i] = 0;
+
+  for (const edge of Object.values(graph.edges)) {
+    if (edge.isBlocked) continue;
+    const cost = calculateDynamicEdgeCost(edge, true);
+    if (!isFinite(cost)) continue;
+    const u = idxMap[edge.source];
+    const v = idxMap[edge.target];
+    if (u !== undefined && v !== undefined) {
+      dist[u][v] = Math.min(dist[u][v], cost);
+      dist[v][u] = Math.min(dist[v][u], cost);
+    }
+  }
+
+  // Floyd-Warshall DP
+  for (let k = 0; k < n; k++) {
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (dist[i][k] + dist[k][j] < dist[i][j]) {
+          dist[i][j] = dist[i][k] + dist[k][j];
+        }
+      }
+    }
+  }
+
+  const elapsed = performance.now() - startTime;
+  let connectedPairs = 0;
+  const totalPairs = (n * (n - 1)) / 2;
+
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
+      if (isFinite(dist[i][j])) connectedPairs++;
+    }
+  }
+
+  const shelterNodes = Object.values(graph.nodes).filter(node => node.type === 'shelter' || node.type === 'hospital');
+
+  return {
+    algorithmName: 'Floyd-Warshall All-Pairs Safe Distances',
+    executionTimeMs: Math.round(elapsed * 100) / 100,
+    summary: `Computed full ${n}x${n} all-pairs dynamic distance matrix ($O(V^3)$). Found ${connectedPairs} mutually accessible zone pairs.`,
+    steps: [
+      {
+        stepIndex: 0,
+        description: `Verified inter-sanctuary and zone-to-depot reachable matrix across all ${n} network intersections.`,
+        highlightedNodeIds: shelterNodes.map(s => s.id).slice(0, 4),
+        highlightedEdgeIds: []
+      }
+    ],
+    customMetrics: {
+      'Total Vertices': n,
+      'Accessible Node Pairs': `${connectedPairs} / ${totalPairs}`,
+      'Network Connectivity Density': `${Math.round((connectedPairs / Math.max(totalPairs, 1)) * 100)}%`,
+      'Execution Speed': `${Math.round(elapsed * 100) / 100} ms`
     }
   };
 }

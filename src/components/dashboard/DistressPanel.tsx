@@ -9,6 +9,9 @@ interface DistressPanelProps {
   graph: GraphData;
   onTriggerRescueMatching: () => void;
   onSelectCall?: (call: DistressCall) => void;
+  onResolveCall?: (callId: string) => void;
+  onAddDistressCall?: () => void;
+  selectedNodeName?: string;
 }
 
 export const DistressPanel: React.FC<DistressPanelProps> = ({
@@ -16,7 +19,10 @@ export const DistressPanel: React.FC<DistressPanelProps> = ({
   rescueTeams,
   graph,
   onTriggerRescueMatching,
-  onSelectCall
+  onSelectCall,
+  onResolveCall,
+  onAddDistressCall,
+  selectedNodeName
 }) => {
   return (
     <div className="glass-panel p-3.5 flex flex-col gap-2.5 border border-slate-800">
@@ -25,13 +31,24 @@ export const DistressPanel: React.FC<DistressPanelProps> = ({
           <Radio className="w-3.5 h-3.5 text-rose-500 animate-pulse" />
           Active SOS Distress Calls & Triage
         </h3>
-        <button
-          onClick={onTriggerRescueMatching}
-          className="btn-primary text-[0.7rem] py-1 px-2.5 bg-gradient-to-r from-orange-600 to-rose-500 border-rose-400/40"
-        >
-          <ShieldAlert className="w-3.5 h-3.5" />
-          Dispatch Rescue Units
-        </button>
+        <div className="flex items-center gap-1.5">
+          {onAddDistressCall && (
+            <button
+              onClick={onAddDistressCall}
+              className="btn-secondary text-[0.68rem] py-1 px-2 text-rose-300 border-rose-500/40 hover:bg-rose-950/40"
+              title={selectedNodeName ? `Trigger SOS at ${selectedNodeName}` : "Trigger SOS Distress Call"}
+            >
+              + SOS Call
+            </button>
+          )}
+          <button
+            onClick={onTriggerRescueMatching}
+            className="btn-primary text-[0.7rem] py-1 px-2.5 bg-gradient-to-r from-orange-600 to-rose-500 border-rose-400/40"
+          >
+            <ShieldAlert className="w-3.5 h-3.5" />
+            Dispatch Units
+          </button>
+        </div>
       </div>
 
       <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
@@ -89,14 +106,29 @@ export const DistressPanel: React.FC<DistressPanelProps> = ({
                     </span>
                   </span>
 
-                  {assignedTeam ? (
-                    <span className="text-sky-300 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3 text-sky-400" />
-                      {assignedTeam.name}
-                    </span>
-                  ) : (
-                    <span className="text-rose-400 animate-pulse">Awaiting Unit Assignment</span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {assignedTeam ? (
+                      <span className="text-sky-300 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-sky-400" />
+                        {assignedTeam.name}
+                      </span>
+                    ) : (
+                      <span className="text-rose-400 animate-pulse">Awaiting Unit</span>
+                    )}
+
+                    {onResolveCall && call.status !== 'rescued' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onResolveCall(call.id);
+                        }}
+                        className="px-1.5 py-0.5 rounded text-[0.62rem] bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 hover:bg-emerald-900 font-sans"
+                        title="Mark distress call as rescued"
+                      >
+                        ✓ Rescued
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             );

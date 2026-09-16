@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Navigation, ShieldCheck, AlertTriangle, ArrowRight, Clock, MapPin, Gauge, CheckCircle2 } from 'lucide-react';
 import { GraphData, RouteResult } from '../../types/graph';
-import { runDijkstraSafePath } from '../../algorithms/shortestPath';
+import { runDijkstraSafePath, runAStarSafePath } from '../../algorithms/shortestPath';
 
 interface RoutePlannerModalProps {
   isOpen: boolean;
@@ -25,12 +25,15 @@ export const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({
 
   const [originId, setOriginId] = useState<string>(defaultOriginId || nodes[0]?.id || '');
   const [targetId, setTargetId] = useState<string>(defaultTargetId || shelters[0]?.id || nodes[1]?.id || '');
+  const [routingAlgo, setRoutingAlgo] = useState<'dijkstra' | 'astar'>('dijkstra');
 
   if (!isOpen) return null;
 
-  // Compute both Standard Shortest and AI Safe routes for comparison
+  // Compute Standard Shortest vs AI Safe
   const standardExecution = originId && targetId ? runDijkstraSafePath(graph, originId, targetId, false) : null;
-  const safeExecution = originId && targetId ? runDijkstraSafePath(graph, originId, targetId, true) : null;
+  const safeExecution = originId && targetId
+    ? (routingAlgo === 'astar' ? runAStarSafePath(graph, originId, targetId) : runDijkstraSafePath(graph, originId, targetId, true))
+    : null;
 
   const standardRoute = standardExecution?.route || null;
   const safeRoute = safeExecution?.route || null;
@@ -57,12 +60,36 @@ export const RoutePlannerModal: React.FC<RoutePlannerModalProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-950 rounded-lg p-0.5 border border-slate-800 text-xs">
+              <button
+                onClick={() => setRoutingAlgo('dijkstra')}
+                className={`px-2.5 py-1 rounded font-semibold transition-all ${
+                  routingAlgo === 'dijkstra'
+                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                Dijkstra
+              </button>
+              <button
+                onClick={() => setRoutingAlgo('astar')}
+                className={`px-2.5 py-1 rounded font-semibold transition-all ${
+                  routingAlgo === 'astar'
+                    ? 'bg-emerald-500 text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                A* Heuristic
+              </button>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Origin & Destination Selectors */}
